@@ -15,18 +15,76 @@
       width:100%;
       height: 90vh;
     }
+
+    /* Style the radio button circle */
+.radio-option {
+    /* Hide the default radio button */
+    display: none;
+}
+/* Style the labels as custom radio buttons */
+.radio-option + label {
+    position: relative;
+    padding-left: 25px; /* Adjust spacing */
+    cursor: pointer;
+    margin-right: 30px;
+}
+
+/* Style the radio button circles */
+.radio-option + label:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 18px; /* Adjust circle size */
+    height: 18px; /* Adjust circle size */
+    border-radius: 50%;
+    box-sizing: border-box;
+}
+
+/* Style each radio button circle with different stroke color */
+.option1 + label:before {
+    border: 2px solid rgb(127, 180, 141); /* Adjust border color */
+}
+
+.option2 + label:before {
+    border: 2px solid rgb(219, 128, 128); /* Adjust border color */
+}
+
+.option3 + label:before {
+    border: 2px solid rgb(127, 180, 141); /* Adjust border color */
+}
+
+.option4 + label:before {
+    border: 2px solid black; /* Adjust border color */
+}
+
+/* Style the radio button circle when checked */
+.radio-option + label:before {
+    transform: scale(0.5);
+}
+
+/* Style the radio button circle when checked */
+.radio-option:checked + label:before {
+    transform: scale(0.9);
+}
+
   </style>
+
+<div id="filter-options">
+    <input type="radio" id="option4" name="category" value="all" checked class="radio-option option4">
+    <label for="option4">Показати всі</label>
+    <input type="radio" id="option1" name="category" value="очно" class="radio-option option1">
+    <label for="option1" style="color: rgb(127, 180, 141); font-weight: bold;">Очно</label>
+    <input type="radio" id="option2" name="category" value="дистанційно" class="radio-option option2">
+    <label for="option2" style="color: rgb(219, 128, 128); font-weight: bold;">Дистанційно</label>
+    <input type="radio" id="option3" name="category" value="змішано" class="radio-option option3">
+    <label for="option3" style="color: rgb(28, 72, 112); font-weight: bold;">Змішано</label>
+</div>
+
 
 <div id="map" class="container"></div>
 
 
-<!-- перемикачі -->
-<!-- <div class="buttons" id="ukraine-switch-buttons">
-  <div class="map_button" value="MAP_infections10">приватна вечірка – 10 людей</div>
-  <div class="map_button" value="MAP_infections100">бенкет – 100 людей</div>
-  <div class="map_button" value="MAP_infections500">концерт – 500 людей</div>
-  <div class="map_button active" value="MAP_infections1000">спортивна гра – 1000 людей</div>
-</div> -->
 
 <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
 <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
@@ -35,22 +93,14 @@
 <script src="https://texty.org.ua/documents/12/d3v5.min.js"></script>
 
 <script>
-var default_zoom_u = window.innerWidth > 800 ? 8 : 8;
-
-var stops_values = [
-    [200, 1.5],
-    [500, 2],
-    [1000, 3],
-    [2000, 4],
-    [10000, 5]
-];
+var default_zoom_u = window.innerWidth > 800 ? 5 : 5;
 
 mapboxgl.accessToken = 'pk.eyJ1IjoiZHJpbWFjdXMxODIiLCJhIjoiWGQ5TFJuayJ9.6sQHpjf_UDLXtEsz8MnjXw';
 
 var map = new mapboxgl.Map({
     container: 'map',
     minZoom: 5,
-    maxZoom: 9.5,
+    maxZoom: 9,
     hash: false,
     tap: false,
     attributionControl: false,
@@ -63,22 +113,9 @@ var map = new mapboxgl.Map({
 
 // map.scrollZoom.disable();
 
-var popup;
-
 
 /* ------- карта України ------- */
 map.on('load', function () {
-
-
-    var layers = map.getStyle().layers;
-    var firstSymbolId;
-
-    for (var i = 0; i < layers.length; i++) {
-        if (layers[i].type === 'symbol') {
-            firstSymbolId = layers[i].id;
-            break;
-        }
-    }
 
     map.addSource('polygon-source', {
         'type': 'geojson',
@@ -97,6 +134,23 @@ map.on('load', function () {
         }
     });
 
+    map.addSource('ukraine', {
+        'type': 'geojson',
+        'data': 'UA_FULL_Ukraine.geojson'
+    });
+
+    // Add a layer using the GeoJSON data
+    map.addLayer({
+        'id': 'ukraine-layer',
+        'type': 'fill',
+        'source': 'ukraine',
+        'paint': {
+            'fill-color': 'transparent', // Adjust fill color and opacity as needed
+            'fill-outline-color': 'grey', // Adjust outline color as needed
+            'fill-opacity': 1 // Adjust fill opacity as needed
+        }
+    });
+
 
 
     //векторні тайли
@@ -106,9 +160,9 @@ map.on('load', function () {
     });
 
 
-    function redrawUkraineMap() {
+    // function redrawUkraineMap() {
         map.addLayer({
-            "id": "schools_data",
+            "id": "all-points",
             'type': 'circle',
             'minzoom': 4,
             'maxzoom': 10,
@@ -137,18 +191,38 @@ map.on('load', function () {
             ],
             'circle-opacity': 1, // Adjust the opacity of the circle
             'circle-stroke-width': 0.1, // Adjust the width of the circle stroke
-            'circle-stroke-color': 'white' // Adjust the color of the circle stroke
+            'circle-stroke-color': 'black' // Adjust the color of the circle stroke
         
             },
-            'minzoom': 5,
-            'layerOptions': {
-            'filter': ['==', '$type', 'Point'] // Фільтрувати лише точкові об'єкти
-        }
+        
         });
 
+ // Function to update filter
+ function updateFilter() {
+  var category = document.querySelector('input[name="category"]:checked').value;
+        var filter;
 
+        if (category === 'all') {
+            // Show all points if 'all' is selected
+            filter = ['in', 'color', 'очно', 'дистанційно', 'змішано'];
+        } else {
+            // Show points based on the selected category
+            filter = ['in', 'color', category];
+        }
 
+        // Set filter on the layer
+        map.setFilter('all-points', filter);
     }
+
+    // Listen for changes in radio buttons and update filter
+    document.querySelectorAll('#filter-options input[type="radio"]').forEach(function(radio) {
+        radio.addEventListener('change', updateFilter);
+    });
+
+
+    // }
+
+
 
     // function sourceCallback() {
     //     if (map.getSource('schools') && map.isSourceLoaded('schools') && map.isStyleLoaded()) {
@@ -157,6 +231,13 @@ map.on('load', function () {
     // }        //
 
     // map.on('sourcedata', sourceCallback);
+
+    // Function to update filter
+    
+    // Listen for changes in checkboxes and update filter
+    document.querySelectorAll('#filter-options input[type="checkbox"]').forEach(function(checkbox) {
+        checkbox.addEventListener('change', updateFilter);
+    });
 
 
 
