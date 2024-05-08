@@ -4,12 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
+
+  <link rel='stylesheet' href="https://api.mapbox.com/mapbox-gl-js/v1.11.0/mapbox-gl.css" />
+  <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.0.0/mapbox-gl-geocoder.css'  type='text/css'/>
+
 </head>
 <body>
   <style>
     #map {
       width:100%;
-      height: 80vh;
+      height: 90vh;
     }
   </style>
 
@@ -17,13 +21,12 @@
 
 
 <!-- перемикачі -->
-<div class="buttons" id="ukraine-switch-buttons">
+<!-- <div class="buttons" id="ukraine-switch-buttons">
   <div class="map_button" value="MAP_infections10">приватна вечірка – 10 людей</div>
   <div class="map_button" value="MAP_infections100">бенкет – 100 людей</div>
   <div class="map_button" value="MAP_infections500">концерт – 500 людей</div>
   <div class="map_button active" value="MAP_infections1000">спортивна гра – 1000 людей</div>
-
-</div>
+</div> -->
 
 <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
 <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
@@ -32,38 +35,33 @@
 <script src="https://texty.org.ua/documents/12/d3v5.min.js"></script>
 
 <script>
-var default_zoom_u = window.innerWidth > 800 ? 5 : 5;
+var default_zoom_u = window.innerWidth > 800 ? 8 : 8;
 
 var stops_values = [
-    [-3, 'white'],
-    [-1, '#d3d3d3'],
-    [0, '#ffffff'],
-    [1, '#ffffb2'],
-    [3, '#fed976'],
-    [6, "#feb24c"],
-    [9, "#fd8d3c"],
-    [15, "#fc4e2a"],
-    [60, "#bd0026"]
-    
+    [200, 1.5],
+    [500, 2],
+    [1000, 3],
+    [2000, 4],
+    [10000, 5]
 ];
 
 mapboxgl.accessToken = 'pk.eyJ1IjoiZHJpbWFjdXMxODIiLCJhIjoiWGQ5TFJuayJ9.6sQHpjf_UDLXtEsz8MnjXw';
 
 var map = new mapboxgl.Map({
     container: 'map',
-    minZoom: default_zoom_u,
-    maxZoom: default_zoom_u + 2,
+    minZoom: 5,
+    maxZoom: 9.5,
     hash: false,
     tap: false,
     attributionControl: false,
-    style: 'https://raw.githubusercontent.com/texty/covid_leisure/main/dark_matter.json',
+    style: 'mapbox://styles/mapbox/empty-v8',
     center: [31.5, 48.5],
-    zoom: default_zoom_u // starting zoom
+    zoom: 5 // starting zoom
 });
 
 
 
-map.scrollZoom.disable();
+// map.scrollZoom.disable();
 
 var popup;
 
@@ -82,81 +80,98 @@ map.on('load', function () {
         }
     }
 
+    map.addSource('polygon-source', {
+        'type': 'geojson',
+        'data': 'OccupiedTerritory_1.geojson'
+    });
+
+    // Add a layer using the GeoJSON data
+    map.addLayer({
+        'id': 'polygon-layer',
+        'type': 'fill',
+        'source': 'polygon-source',
+        'paint': {
+            'fill-color': '#e8a598', // Adjust fill color and opacity as needed
+            'fill-outline-color': '#e8a598', // Adjust outline color as needed
+            'fill-opacity': 0.2 // Adjust fill opacity as needed
+        }
+    });
+
 
 
     //векторні тайли
     map.addSource('schools', {
         type: 'vector',
-        tiles: ["schools_tiles/{z}/{x}/{y}.pbf"]
+        tiles: ["https://texty.github.io/vector_tiles_schools/schools_tiles/{z}/{x}/{y}.pbf"]
     });
 
 
-    function redrawUkraineMap(choropleth_column) {
+    function redrawUkraineMap() {
         map.addLayer({
             "id": "schools_data",
-            'type': 'fill',
+            'type': 'circle',
             'minzoom': 4,
             'maxzoom': 10,
             'source': "schools",
-            "source-layer": "covid_leisure_4326",
+            "source-layer": "data_in_4326",
             "paint": {
-                'fill-color': {
-                    property: choropleth_column,
-                    stops: stops_values
-                },
-
-
-                'fill-outline-color': [
-                    'case',
-                    ['boolean', ['feature-state', 'hover'], false],
-                    "grey",
-                    "lightgrey"
-                ]
-            }
-        }, firstSymbolId);
-
-
-        map.on('click', 'schools_data', function(e) {
-            map.getCanvas().style.cursor = 'pointer';
-            popup =  new mapboxgl.Popup()
-                .setLngLat(e.lngLat)
-                .setHTML(e.features[0].properties.MAP_registration_region + ": " + e.features[0].properties[choropleth_column])
-                .addTo(map);
-
-            if(e.features[0].properties.MAP_infections1000 >= 0){
-                popup.setHTML(e.features[0].properties.MAP_registration_region + ": " + e.features[0].properties[choropleth_column])
-
-            } else {
-               popup.setHTML("тимчасово окупована територія: немає даних");
-            }
-
+              'circle-radius': [
+                'interpolate', ['linear'],
+                ['get', 'total'], // Property name
+                // Property value, radius pairs
+                0, 1,
+                100, 2, // Default radius if property value is less than the first stop value
+                // Stop values and their corresponding radius values
+                
+                500, 4,
+                1000, 5,
+                2000, 6,
+                10000, 10
+            ],
+              'circle-color': [
+                'match',
+                ['get', 'color'], // Property name
+                'змішано', 'rgb(28, 72, 112)', // Property value and corresponding color
+                'дистанційно', 'rgb(219, 128, 128)',
+                'rgb(127, 180, 141)' // Default color if no match found
+            ],
+            'circle-opacity': 1, // Adjust the opacity of the circle
+            'circle-stroke-width': 0.1, // Adjust the width of the circle stroke
+            'circle-stroke-color': 'white' // Adjust the color of the circle stroke
+        
+            },
+            'minzoom': 5,
+            'layerOptions': {
+            'filter': ['==', '$type', 'Point'] // Фільтрувати лише точкові об'єкти
+        }
         });
+
 
 
     }
 
-    function sourceCallback() {
-        if (map.getSource('schools') && map.isSourceLoaded('schools') && map.isStyleLoaded()) {
-            d3.select(".spinner").remove();
-        }
-    }        //
+    // function sourceCallback() {
+    //     if (map.getSource('schools') && map.isSourceLoaded('schools') && map.isStyleLoaded()) {
+    //         d3.select(".spinner").remove();
+    //     }
+    // }        //
 
-    map.on('sourcedata', sourceCallback);
+    // map.on('sourcedata', sourceCallback);
 
 
 
-    redrawUkraineMap('MAP_infections1000');
+    redrawUkraineMap();
 
-    /* перемикаємо шари  карти */
-    d3.select("#ukraine-switch-buttons").selectAll(".map_button").on("click", function() {
-        let selected_layer = d3.select(this).attr("value");
-        d3.select(this.parentNode).selectAll(".map_button").classed("active", false);
-        d3.select(this).classed("active", true);
-        $('.mapboxgl-popup').remove();
-        map.removeLayer('schools_data');
-        redrawUkraineMap(selected_layer);
+    // /* перемикаємо шари  карти */
+    // d3.select("#ukraine-switch-buttons").selectAll(".map_button").on("click", function() {
+    //     let selected_layer = d3.select(this).attr("value");
+    //     d3.select(this.parentNode).selectAll(".map_button").classed("active", false);
+    //     d3.select(this).classed("active", true);
+    //     $('.mapboxgl-popup').remove();
+    //     map.removeLayer('schools_data');
+    //     redrawUkraineMap(selected_layer);
 
-    });
+    // });
 
 
     var nav = new mapboxgl.NavigationControl();
